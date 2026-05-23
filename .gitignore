@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.local
+*.log
+vault/_index/
+.DS_Store
+.vitest-cache/
