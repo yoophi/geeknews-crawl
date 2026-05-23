@@ -127,6 +127,25 @@ pnpm graph:build
 | `favorited` | 두 토픽 모두 favorited | 2 |
 | `similarity` | 제목 3-gram Jaccard ≥ 0.35 | 점수 |
 
+## 데스크탑 앱
+
+```bash
+cd apps/desktop
+pnpm dev          # Electron 개발 모드 (HMR)
+pnpm build:mac    # macOS 패키징
+```
+
+기능:
+
+- `/` 최근 토픽 리스트 (페이지네이션)
+- `/topic/:id` 상세 + 메모 편집(저장 시 frontmatter 보존) + 태그 추가/제거
+- `/tags`, `/tags/:name` 태그 탐색
+- `/favorited` 즐겨찾기 목록
+- `/graph` cytoscape 그래프 (엣지 종류 토글)
+- `/tools` CLI 직접 실행 (crawl/sync/graph-rebuild/lint) + 로그 스트리밍
+
+내부적으로 main 프로세스가 vault를 직접 읽고(`@core/lib/vault` 재사용), 장기 실행 명령(`crawl`, `sync:favorites`, `graph:build`, `lint:vault`)은 루트 CLI를 `pnpm exec`로 spawn 해 stdout/stderr를 IPC로 스트리밍한다.
+
 ## 테스트
 
 ```bash
@@ -170,5 +189,5 @@ pnpm sync:favorites --batch 50 --limit 500  # 배치 크기/대상 수 제한
 - [x] Phase 1: 백필 크롤러 (`backfill` / `incremental` / `ids`)
 - [x] Phase 2: lint:vault + tag/relate/note CLI
 - [x] Phase 3a: 그래프 빌더 (graph.json)
-- [x] Phase 3b: Next.js 뷰어 (`apps/web`)
+- [x] Phase 3b: Electron 데스크탑 앱 (`apps/desktop`)
 - [x] Phase 4: 로그인 쿠키로 즐겨찾기 동기화 → `favorited: true` 자동 부여

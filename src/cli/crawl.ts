@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { mkdir, readdir, writeFile, appendFile } from "node:fs/promises";
+import { mkdir, readdir, appendFile } from "node:fs/promises";
 import { join } from "node:path";
 import { config } from "../lib/config.ts";
 import { fetchText, FetchError } from "../crawler/fetcher.ts";

@@ -6,3 +6,5 @@ allowBuilds:
   esbuild: true
   '@tailwindcss/oxide': true
   sharp: true
+  electron: true
+  electron-winstaller: false
