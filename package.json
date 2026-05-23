@@ -6,6 +6,10 @@
   "scripts": {
     "crawl": "tsx src/cli/crawl.ts",
     "lint:vault": "tsx src/cli/lint-vault.ts",
+    "tag": "tsx src/cli/tag.ts",
+    "relate": "tsx src/cli/link.ts",
+    "note": "tsx src/cli/note.ts",
+    "graph:build": "tsx src/cli/build-graph.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
