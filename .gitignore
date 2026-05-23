@@ -1,7 +1,11 @@
 node_modules/
 .env
-.env.local
+.env.*
+!.env.example
+cookies.txt
+cookies.json
 *.log
+*.swp
 logs/
 vault/_index/
 .DS_Store
