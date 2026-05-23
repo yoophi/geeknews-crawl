@@ -134,11 +134,41 @@ pnpm test         # vitest
 pnpm typecheck    # tsc --noEmit
 ```
 
+## 즐겨찾기 동기화 (Phase 4)
+
+브라우저에 로그인된 세션의 쿠키를 재사용해 즐겨찾기 상태를 vault에 반영한다.
+
+쿠키 제공 방법 (둘 중 하나):
+
+1. **`COOKIE_HEADER` 환경변수** — 가장 간단. devtools → Application → Cookies → 모두 복사한 헤더 문자열을 그대로 붙여넣기.
+   ```bash
+   COOKIE_HEADER="ci_session=...; geeknews_user=..." pnpm sync:favorites --dry-run
+   ```
+2. **`COOKIE_FILE` 파일** — `.env`에 경로 지정. 다음 세 가지 포맷 모두 인식:
+   - Netscape `cookies.txt` (브라우저 확장으로 export)
+   - JSON 객체 `{ "name": "value", ... }`
+   - 한 줄 헤더 문자열
+
+실행:
+
+```bash
+pnpm sync:favorites --dry-run             # 변경 없이 어떤 토픽이 favorited로 바뀔지만 미리보기
+pnpm sync:favorites                       # frontmatter favorited 갱신
+pnpm sync:favorites --batch 50 --limit 500  # 배치 크기/대상 수 제한
+```
+
+내부 동작:
+- `GET /auth/nav-state`로 로그인 검증
+- `GET /api/viewer/topics?ids=...`를 배치로 호출 → 각 토픽의 `fav` 필드 확인
+- 변경된 토픽만 `rewriteTopicFile`로 frontmatter 갱신 (`tags`, `related`, 메모 영역은 보존)
+
+이후 `pnpm graph:build`를 다시 돌리면 `favorited` 엣지가 그래프에 반영된다.
+
 ## 로드맵
 
 - [x] Phase 0: 부트스트랩
 - [x] Phase 1: 백필 크롤러 (`backfill` / `incremental` / `ids`)
 - [x] Phase 2: lint:vault + tag/relate/note CLI
 - [x] Phase 3a: 그래프 빌더 (graph.json)
-- [ ] Phase 3b: Next.js 뷰어 (`apps/web` — `/topic/[id]`, `/tags/[name]`, `/graph`, `/search`)
-- [ ] Phase 4: 로그인 쿠키로 즐겨찾기 동기화 → `favorited: true` 자동 부여
+- [x] Phase 3b: Next.js 뷰어 (`apps/web`)
+- [x] Phase 4: 로그인 쿠키로 즐겨찾기 동기화 → `favorited: true` 자동 부여
