@@ -1,0 +1,58 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --accent: #0050b3;
+  --card: #fff;
+  --border: #e5e5e5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f10;
+    --fg: #e8e8e8;
+    --muted: #999;
+    --accent: #66b3ff;
+    --card: #1a1a1c;
+    --border: #2a2a2c;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.site-header {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  background: var(--card);
+}
+.site-header nav { display: flex; gap: 16px; }
+.container { max-width: 980px; margin: 0 auto; padding: 24px 20px 80px; }
+.topic-card {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.topic-card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.topic-meta { color: var(--muted); font-size: 13px; }
+.topic-meta .pill {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  background: var(--border); margin-right: 4px; font-size: 12px;
+}
+.fav { color: #d97706; }
+.markdown { line-height: 1.7; }
+.markdown h1, .markdown h2, .markdown h3 { margin-top: 1.4em; }
+.markdown code { background: var(--border); padding: 1px 4px; border-radius: 3px; }
+.markdown pre { background: var(--border); padding: 12px; border-radius: 6px; overflow-x: auto; }
+.markdown blockquote { border-left: 3px solid var(--accent); margin: 0; padding-left: 12px; color: var(--muted); }
+.tag-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  background: var(--border); margin-right: 4px; font-size: 12px;
+}
+#graph-canvas { width: 100%; height: 80vh; border: 1px solid var(--border); border-radius: 6px; }
+.graph-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.graph-toolbar label { display: flex; gap: 4px; align-items: center; font-size: 13px; }

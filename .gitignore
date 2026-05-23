@@ -7,3 +7,5 @@ vault/_index/
 .DS_Store
 .vitest-cache/
 .next/
+**/next-env.d.ts
+**/tsconfig.tsbuildinfo
