@@ -173,12 +173,15 @@ pnpm typecheck    # tsc --noEmit
 ```bash
 pnpm sync:favorites --dry-run             # 변경 없이 어떤 토픽이 favorited로 바뀔지만 미리보기
 pnpm sync:favorites                       # frontmatter favorited 갱신
-pnpm sync:favorites --batch 50 --limit 500  # 배치 크기/대상 수 제한
+pnpm sync:favorites --userid yoophi       # 인증 없이 다른 사용자의 공개 즐겨찾기 동기화
+pnpm sync:favorites --max-pages 50        # 페이지 순회 상한 (기본 500)
 ```
 
 내부 동작:
-- `GET /auth/nav-state`로 로그인 검증
-- `GET /api/viewer/topics?ids=...`를 배치로 호출 → 각 토픽의 `fav` 필드 확인
+- `GET /auth/nav-state`로 로그인 검증 + userid 자동 감지 (혹은 `--userid` 플래그)
+- `GET /faved_topics?userid=<id>&page=N` 순회 — 각 페이지에서 `data-topic-state-id` 추출, 빈 페이지나 중복 페이지 만나면 중단
+- vault 토픽 중 즐겨찾기 ID 집합과 비교하여 `favorited`를 양방향 동기화 (추가/제거 모두)
+- vault에 없는 즐겨찾기 토픽 ID는 끝에 안내 (`pnpm crawl ids ...`로 받을 수 있음)
 - 변경된 토픽만 `rewriteTopicFile`로 frontmatter 갱신 (`tags`, `related`, 메모 영역은 보존)
 
 이후 `pnpm graph:build`를 다시 돌리면 `favorited` 엣지가 그래프에 반영된다.

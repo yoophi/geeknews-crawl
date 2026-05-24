@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { loadCookieHeader, fetchNavState } from "../crawler/auth.ts";
-import { fetchViewerStates, isFavorited } from "../crawler/favorites.ts";
+import { collectFavedIds } from "../crawler/favorites.ts";
 import { iterTopicFiles, rewriteTopicFile } from "../lib/vault.ts";
 import type { TopicFile } from "../lib/vault.ts";
 
@@ -8,53 +8,67 @@ async function main() {
   const { values } = parseArgs({
     options: {
       "dry-run": { type: "boolean", default: false },
-      batch: { type: "string", default: "100" },
-      limit: { type: "string" },
+      "max-pages": { type: "string" },
+      userid: { type: "string" },
     },
     allowPositionals: true,
   });
 
   const cookieHeader = await loadCookieHeader();
-  if (!cookieHeader) {
-    console.error(
-      "no cookies found. Set COOKIE_HEADER env or COOKIE_FILE in .env (Netscape cookies.txt or JSON object).",
-    );
-    process.exit(1);
+
+  let userid = values.userid as string | undefined;
+  if (!userid) {
+    if (!cookieHeader) {
+      console.error(
+        "no --userid given and no cookies to auto-detect. Set COOKIE_HEADER/COOKIE_FILE or pass --userid <name>.",
+      );
+      process.exit(1);
+    }
+    const nav = await fetchNavState(cookieHeader);
+    if (!nav.ok || !nav.logged_in) {
+      console.error("auth failed: not logged in. Re-export cookies from your browser.");
+      process.exit(2);
+    }
+    userid = String(nav.userid ?? nav.username ?? "");
+    if (!userid) {
+      console.error("nav-state did not return a userid");
+      process.exit(3);
+    }
+    console.log(`logged in as ${nav.username ?? nav.userid} (userid=${userid})`);
+  } else {
+    console.log(`userid=${userid} (passed via flag; auth not required for public favorites page)`);
   }
 
-  const nav = await fetchNavState(cookieHeader);
-  if (!nav.ok || !nav.logged_in) {
-    console.error("auth failed: not logged in. Re-export cookies from your browser.");
-    process.exit(2);
-  }
-  console.log(`logged in as ${nav.username ?? nav.userid ?? "<?>"} (userid=${nav.userid ?? "?"})`);
+  const maxPages = values["max-pages"] ? Number.parseInt(values["max-pages"] as string, 10) : 500;
+  console.log(`fetching /faved_topics pages (max ${maxPages})...`);
+  const favIds = await collectFavedIds(userid, {
+    cookieHeader: cookieHeader ?? undefined,
+    maxPages,
+    onPage: (page, ids, total) => {
+      console.log(`  page ${page}: +${ids.length} ids (cumulative ${total})`);
+    },
+  });
+  const favSet = new Set(favIds);
+  console.log(`\n${favIds.length} favorited topics on server`);
 
-  const ids: number[] = [];
   const filesById = new Map<number, TopicFile>();
-  for await (const tf of iterTopicFiles()) {
-    ids.push(tf.id);
-    filesById.set(tf.id, tf);
-  }
-  console.log(`${ids.length} topics in vault`);
+  for await (const tf of iterTopicFiles()) filesById.set(tf.id, tf);
+  console.log(`${filesById.size} topics in vault`);
 
-  const limited = values.limit ? ids.slice(0, Number.parseInt(values.limit, 10)) : ids;
-  const batch = Number.parseInt(values.batch as string, 10);
-  console.log(`querying viewer state for ${limited.length} topics in batches of ${batch}...`);
-
-  const states = await fetchViewerStates(limited, cookieHeader, batch);
-  let favs = 0;
-  let changed = 0;
+  let added = 0;
+  let removed = 0;
+  let unchanged = 0;
   const dryRun = !!values["dry-run"];
 
-  for (const id of limited) {
-    const tf = filesById.get(id);
-    if (!tf) continue;
-    const state = states.get(id);
-    const nowFav = isFavorited(state);
+  for (const [id, tf] of filesById) {
     const wasFav = Boolean(tf.data.favorited);
-    if (nowFav) favs++;
-    if (nowFav === wasFav) continue;
-    changed++;
+    const nowFav = favSet.has(id);
+    if (wasFav === nowFav) {
+      unchanged++;
+      continue;
+    }
+    if (nowFav) added++;
+    else removed++;
     console.log(`${nowFav ? "★" : "·"} ${id} favorited: ${wasFav} → ${nowFav}`);
     if (dryRun) continue;
     await rewriteTopicFile(tf, (data, content) => ({
@@ -63,7 +77,21 @@ async function main() {
     }));
   }
 
-  console.log(`\ntotal: ${favs} favorited / ${changed} updated${dryRun ? " (dry-run)" : ""}`);
+  const missing = [...favSet].filter((id) => !filesById.has(id));
+  console.log(
+    `\ntotal: ${favSet.size} favorited / ${added} added / ${removed} removed / ${unchanged} unchanged${
+      dryRun ? " (dry-run)" : ""
+    }`,
+  );
+  if (missing.length > 0) {
+    console.log(
+      `\n${missing.length} favorited topic(s) not yet in vault — fetch them with:`,
+    );
+    const preview = missing.slice(0, 10).join(",");
+    console.log(
+      `  pnpm crawl ids ${preview}${missing.length > 10 ? `,... (+${missing.length - 10})` : ""}`,
+    );
+  }
 }
 
 main().catch((e) => {
