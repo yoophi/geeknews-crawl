@@ -140,13 +140,10 @@ export async function buildGraph(): Promise<Graph> {
     for (const dst of linkedIds) addEdge(tf.id, dst, "related", 2);
   }
 
-  // favorited edges (pairs of favorited nodes)
-  const favIds = nodes.filter((n) => n.favorited).map((n) => n.id);
-  for (let i = 0; i < favIds.length; i++) {
-    for (let j = i + 1; j < favIds.length; j++) {
-      addEdge(favIds[i]!, favIds[j]!, "favorited", 2);
-    }
-  }
+  // favorited is a NODE attribute, not an edge clique — n favorited nodes
+  // would otherwise produce n*(n-1)/2 edges (1.2M+ at n=1592), bloating the
+  // graph and drowning every other signal. The viewer highlights favorited
+  // nodes by color and offers a favorited-only filter instead.
 
   // similarity (title 3-gram jaccard). Bucket by shared trigrams to avoid full N^2.
   const buckets = new Map<string, number[]>();

@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { loadCookieHeader, fetchNavState } from "../crawler/auth.ts";
+import { loadCookieHeader, getAuthCookieHeader } from "../crawler/auth.ts";
 import { collectFavedIds, fetchViewerStates, isFavorited } from "../crawler/favorites.ts";
 import { iterTopicFiles, rewriteTopicFile } from "../lib/vault.ts";
 import type { TopicFile } from "../lib/vault.ts";
@@ -39,8 +39,6 @@ async function main() {
     process.exit(1);
   }
 
-  const cookieHeader = await loadCookieHeader();
-
   const filesById = new Map<number, TopicFile>();
   for await (const tf of iterTopicFiles()) filesById.set(tf.id, tf);
   console.log(`${filesById.size} topics in vault`);
@@ -49,15 +47,7 @@ async function main() {
   let coversWholeVault: boolean;
 
   if (viaApi) {
-    if (!cookieHeader) {
-      console.error("--via-api requires cookies. Set COOKIE_HEADER or COOKIE_FILE in .env.");
-      process.exit(1);
-    }
-    const nav = await fetchNavState(cookieHeader);
-    if (!nav.ok || !nav.logged_in) {
-      console.error("auth failed: not logged in. Re-export cookies from your browser.");
-      process.exit(2);
-    }
+    const { cookieHeader, nav } = await getAuthCookieHeader();
     console.log(`logged in as ${nav.username ?? nav.userid}`);
     const allIds = [...filesById.keys()];
     console.log(`querying viewer API for ${allIds.length} ids (batches of 100)...`);
@@ -70,20 +60,18 @@ async function main() {
     coversWholeVault = true;
   } else {
     let userid = values.userid as string | undefined;
+    let cookieHeader = await loadCookieHeader();
     if (!userid) {
-      if (!cookieHeader) {
-        console.error(
-          "no --userid given and no cookies to auto-detect. Set COOKIE_HEADER/COOKIE_FILE or pass --userid <name>.",
-        );
-        process.exit(1);
+      if (process.env.GEEKNEWS_USERID) {
+        // public page only needs the userid; avoid auth round-trips
+        userid = process.env.GEEKNEWS_USERID;
+        console.log(`userid=${userid} (from GEEKNEWS_USERID)`);
+      } else {
+        const auth = await getAuthCookieHeader();
+        cookieHeader = auth.cookieHeader;
+        userid = String(auth.nav.userid ?? auth.nav.username ?? "");
+        console.log(`logged in as ${auth.nav.username ?? auth.nav.userid} (userid=${userid})`);
       }
-      const nav = await fetchNavState(cookieHeader);
-      if (!nav.ok || !nav.logged_in) {
-        console.error("auth failed: not logged in. Re-export cookies, or pass --userid <name>.");
-        process.exit(2);
-      }
-      userid = String(nav.userid ?? nav.username ?? "");
-      console.log(`logged in as ${nav.username ?? nav.userid} (userid=${userid})`);
     }
     const maxPages = values["max-pages"]
       ? Number.parseInt(values["max-pages"] as string, 10)

@@ -45,12 +45,13 @@ pnpm graph:build
 ### 즐겨찾기 전체 복구/검증 (인증 필요)
 
 ```bash
-# 쿠키 만료 시: Chrome devtools → Network → news.hada.io 요청 → Copy as cURL
-# → cookie 헤더 값을 .env의 COOKIE_HEADER에 갱신
-
 pnpm sync:favorites --via-api            # 전체 vault를 viewer API로 대조 (느림: ~100 id/sec)
 pnpm sync:favorites --via-api --prune    # 제거까지 동기화 (유일하게 안전한 prune 경로)
 ```
+
+인증은 자동이다: `.env`의 `GEEKNEWS_USERID`/`GEEKNEWS_PASSWORD`로
+`POST /auth/gn_login` 자동 로그인 (`src/crawler/auth.ts`의 `getAuthCookieHeader()`).
+`COOKIE_HEADER`가 설정돼 있으면 우선 시도하고, 만료 시 자격증명으로 폴백.
 
 ### 과거 ID 범위 백필
 
@@ -74,7 +75,7 @@ cd apps/desktop && pnpm typecheck   # 데스크탑 (node + web 양쪽)
 - **데이터 소스**: `topic/<id>.md` 엔드포인트가 깨끗한 마크다운을 반환 (HTML 파싱 불필요). 파서는 `src/crawler/parser.ts`의 정규식 섹션 분할.
 - **파일 규칙**: `vault/topics/YYYY/MM/<id>-<slug>.md`, 댓글은 `vault/comments/<id>.md`, wikilink는 `[[<id>]]` 또는 `[[<id>-<slug>]]`.
 - **크롤 상태**: `vault/_state/crawl-state.json` (인간 가독 JSON), 에러는 `vault/_state/crawl-errors.log`.
-- **그래프**: `pnpm graph:build` → `vault/_index/graph.json` (gitignored, derived). 엣지: domain/tag/related/favorited/similarity(제목 3-gram Jaccard ≥0.35).
+- **그래프**: `pnpm graph:build` → `vault/_index/graph.json` (gitignored, derived). 엣지: domain/tag/related/similarity(제목 3-gram Jaccard ≥0.35). **favorited는 노드 속성으로만** — 엣지 clique를 만들면 n=1592에서 126만 엣지가 되므로 금지.
 - **gray-matter 함정**: YAML의 ISO 날짜를 `Date` 객체로 자동 변환한다. zod 검증 전 `coerceDates()` 필수 (`src/lib/vault.ts`).
 - **404 ID는 정상**: 삭제된 글. `pnpm crawl`은 30회 연속 404면 중단(backfill), 개별 404는 기록 후 진행.
 - **pnpm 워크스페이스**: 루트(`.`) + `apps/*`. `pnpm link`는 빌트인과 충돌해서 `pnpm relate`로 명명.
@@ -85,5 +86,6 @@ cd apps/desktop && pnpm typecheck   # 데스크탑 (node + web 양쪽)
 - `/faved_topics?userid=X&page=N`: 공개(인증 불요), 페이지당 20개, **최근 400개 캡**, 끝 페이지 다음은 404.
 - `/api/viewer/topics?ids=a,b,c`: 인증 필요, 임의 ID의 fav/vote 상태 반환 — 전체 동기화의 유일한 신뢰 소스.
 - `/auth/nav-state`: 로그인 검증 + userid 반환.
+- `/auth/gn_login`: POST `userid`/`password`/`remember=on` → 302 + Set-Cookie(PHPSESSID, remember_me). 브라우저에서 복사한 PHPSESSID는 서버 측 세션 만료로 금방 무효화되므로, 자동화에는 이 로그인 플로우를 쓴다.
 - robots.txt: `/login`, `/comments` 등 차단 — 직접 호출 금지 (댓글은 topic .md에 포함된 것 사용).
 - RSS `/rss/news`는 feedburner로 302 → fetcher가 redirect 따라감.
