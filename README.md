@@ -10,11 +10,15 @@
 geeknews-crawl/
 ├─ src/
 │  ├─ lib/          # config, frontmatter 스키마(zod), slug, vault 유틸
-│  ├─ crawler/      # fetcher, parser, writer, discovery (RSS+페이지)
+│  ├─ crawler/      # fetcher, parser, writer, discovery, auth, favorites
 │  ├─ graph/        # graph builder
-│  └─ cli/          # crawl, lint-vault, tag, link(=relate), note, build-graph
+│  └─ cli/          # crawl, lint-vault, tag, relate, note, build-graph, sync-favorites
+├─ apps/
+│  └─ desktop/      # Electron 데스크탑 앱 (뷰어 + 그래프 + CLI 실행)
+├─ scripts/
+│  └─ crawl-parallel.sh   # tmux N-worker 병렬 크롤
 ├─ tests/           # 파서/writer 단위 테스트
-├─ logs/            # 백필 등 장기 실행 로그
+├─ AGENTS.md        # 코딩 에이전트(Claude Code/Codex 등) 공용 지침
 └─ vault/           # ← 출력물. 그대로 백업 / git 관리 대상
    ├─ topics/YYYY/MM/<id>-<slug>.md     # 게시물 1개 = 파일 1개
    ├─ comments/<id>.md                  # 댓글 트리
@@ -80,6 +84,14 @@ pnpm crawl backfill --months 12      # 최근 12개월 전체 백필 (기본값)
 pnpm crawl incremental               # RSS + 최근 3페이지 신규만 흡수
 pnpm crawl <cmd> --save-html         # 원본 HTML(gzip)도 함께 백업
 pnpm crawl <cmd> --refresh           # 이미 존재하는 토픽도 재크롤
+```
+
+큰 범위를 빠르게 돌 때는 tmux 병렬 크롤 (워커당 2초 간격 = 총 ~4 req/sec):
+
+```bash
+scripts/crawl-parallel.sh            # 8 worker, 1 ~ vault max id
+scripts/crawl-parallel.sh 4 1 30000  # worker 수 / 시작 / 끝 ID
+tmux attach -t crawl                 # 진행 확인, kill-session으로 일괄 중지
 ```
 
 매너:
@@ -193,8 +205,8 @@ pnpm sync:favorites --via-api --prune  # 즐겨찾기 해제까지 반영 (유�
 - vault에 없는 즐겨찾기 토픽 ID는 끝에 안내 (`pnpm crawl ids ...`로 받을 수 있음)
 - 변경된 토픽만 `rewriteTopicFile`로 frontmatter 갱신 (`tags`, `related`, 메모 영역은 보존)
 
-이후 `pnpm graph:build`를 다시 돌리면 그래프 노드의 favorited 표시가 갱신된다.
-(favorited는 엣지가 아닌 **노드 속성** — 뷰어에서 주황색 + 필터로 표현)
+이후 `pnpm graph:build`를 다시 돌리면 그래프 노드의 favorited 표시가 갱신된다
+(표현 방식은 위 [그래프 빌더](#그래프-빌더) 참조).
 
 ## 로드맵
 
@@ -203,4 +215,4 @@ pnpm sync:favorites --via-api --prune  # 즐겨찾기 해제까지 반영 (유�
 - [x] Phase 2: lint:vault + tag/relate/note CLI
 - [x] Phase 3a: 그래프 빌더 (graph.json)
 - [x] Phase 3b: Electron 데스크탑 앱 (`apps/desktop`)
-- [x] Phase 4: 로그인 쿠키로 즐겨찾기 동기화 → `favorited: true` 자동 부여
+- [x] Phase 4: 즐겨찾기 동기화 (자동 로그인, add-only 기본 + `--via-api` 전체 대조)
