@@ -124,8 +124,10 @@ pnpm graph:build
 | `domain` | 같은 출처 도메인 | 1 |
 | `tag` | 사용자 태그 공유 수 | 공유 태그 개수 |
 | `related` | frontmatter `related` 수동 연결 | 2 |
-| `favorited` | 두 토픽 모두 favorited | 2 |
 | `similarity` | 제목 3-gram Jaccard ≥ 0.35 | 점수 |
+
+favorited는 엣지가 아닌 **노드 속성**이다 (clique로 만들면 n=1592에서 126만 엣지가 되므로).
+뷰어가 주황색 노드 + favorited-only 필터로 표현한다.
 
 ## 데스크탑 앱
 
@@ -155,36 +157,44 @@ pnpm typecheck    # tsc --noEmit
 
 ## 즐겨찾기 동기화 (Phase 4)
 
-브라우저에 로그인된 세션의 쿠키를 재사용해 즐겨찾기 상태를 vault에 반영한다.
+즐겨찾기 상태를 vault frontmatter(`favorited`)에 반영한다.
 
-쿠키 제공 방법 (둘 중 하나):
+인증은 자동이다. `.env`에 자격증명을 넣어두면 쿠키가 없거나 만료됐을 때
+`/auth/gn_login`으로 알아서 로그인한다:
 
-1. **`COOKIE_HEADER` 환경변수** — 가장 간단. devtools → Application → Cookies → 모두 복사한 헤더 문자열을 그대로 붙여넣기.
-   ```bash
-   COOKIE_HEADER="ci_session=...; geeknews_user=..." pnpm sync:favorites --dry-run
-   ```
-2. **`COOKIE_FILE` 파일** — `.env`에 경로 지정. 다음 세 가지 포맷 모두 인식:
-   - Netscape `cookies.txt` (브라우저 확장으로 export)
-   - JSON 객체 `{ "name": "value", ... }`
-   - 한 줄 헤더 문자열
+```bash
+# .env
+GEEKNEWS_USERID=...
+GEEKNEWS_PASSWORD=...
+# (선택) COOKIE_HEADER / COOKIE_FILE — 있으면 우선 사용, 만료 시 위 자격증명으로 폴백
+```
 
 실행:
 
 ```bash
-pnpm sync:favorites --dry-run             # 변경 없이 어떤 토픽이 favorited로 바뀔지만 미리보기
-pnpm sync:favorites                       # frontmatter favorited 갱신
-pnpm sync:favorites --userid yoophi       # 인증 없이 다른 사용자의 공개 즐겨찾기 동기화
-pnpm sync:favorites --max-pages 50        # 페이지 순회 상한 (기본 500)
+pnpm sync:favorites --dry-run        # 변경 미리보기
+pnpm sync:favorites                  # 기본: 공개 /faved_topics 페이지 기반 — 추가 전용(add-only)
+pnpm sync:favorites --userid X       # 다른 사용자의 공개 즐겨찾기 (인증 불요)
+pnpm sync:favorites --via-api        # 전체 vault를 viewer API로 대조 — 복구/정합성 검증용
+pnpm sync:favorites --via-api --prune  # 즐겨찾기 해제까지 반영 (유일하게 안전한 제거 경로)
 ```
 
-내부 동작:
-- `GET /auth/nav-state`로 로그인 검증 + userid 자동 감지 (혹은 `--userid` 플래그)
-- `GET /faved_topics?userid=<id>&page=N` 순회 — 각 페이지에서 `data-topic-state-id` 추출, 빈 페이지나 중복 페이지 만나면 중단
-- vault 토픽 중 즐겨찾기 ID 집합과 비교하여 `favorited`를 양방향 동기화 (추가/제거 모두)
+두 가지 모드가 있는 이유:
+
+| 모드 | 소스 | 커버리지 | 제거 |
+|---|---|---|---|
+| 기본 (페이지) | `/faved_topics?userid=X&page=N` (공개) | **최근 ~400개로 캡** | 불가 (add-only) |
+| `--via-api` | `/api/viewer/topics?ids=...` (인증) | vault 전체 | `--prune`으로 가능 |
+
+공개 목록이 400개로 캡되어 있어서, 거기 없다고 un-favorite로 취급하면 안 된다.
+그래서 기본 모드는 추가만 하고, 제거는 전체를 검증하는 `--via-api --prune`에서만 허용한다.
+
+공통 동작:
 - vault에 없는 즐겨찾기 토픽 ID는 끝에 안내 (`pnpm crawl ids ...`로 받을 수 있음)
 - 변경된 토픽만 `rewriteTopicFile`로 frontmatter 갱신 (`tags`, `related`, 메모 영역은 보존)
 
-이후 `pnpm graph:build`를 다시 돌리면 `favorited` 엣지가 그래프에 반영된다.
+이후 `pnpm graph:build`를 다시 돌리면 그래프 노드의 favorited 표시가 갱신된다.
+(favorited는 엣지가 아닌 **노드 속성** — 뷰어에서 주황색 + 필터로 표현)
 
 ## 로드맵
 

@@ -88,14 +88,11 @@ export async function collectFavedIds(
       const id = Number.parseInt(m[1]!, 10);
       if (Number.isFinite(id) && id > 0) idsOnPage.push(id);
     }
-    if (idsOnPage.length === 0) {
-      opts.onPage?.(page, [], all.size);
-      break;
-    }
     const before = all.size;
     for (const id of idsOnPage) all.add(id);
     opts.onPage?.(page, idsOnPage, all.size);
-    if (all.size === before) break; // no new IDs => looped or duplicate page
+    // stop on an empty page or when a page yields nothing new (loop/duplicate)
+    if (all.size === before) break;
   }
   return [...all].sort((a, b) => b - a);
 }

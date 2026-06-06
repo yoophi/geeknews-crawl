@@ -93,12 +93,12 @@ async function main() {
 
   let added = 0;
   let removed = 0;
+  const canRemove = prune && coversWholeVault;
   for (const [id, tf] of filesById) {
     const wasFav = Boolean(tf.data.favorited);
     const nowFav = favSet.has(id);
-    let nextFav = wasFav;
-    if (nowFav && !wasFav) nextFav = true;
-    else if (!nowFav && wasFav && prune && coversWholeVault) nextFav = false;
+    // favorited if seen on server; otherwise keep, unless pruning with full coverage
+    const nextFav = nowFav || (wasFav && !canRemove);
     if (nextFav === wasFav) continue;
     if (nextFav) added++;
     else removed++;

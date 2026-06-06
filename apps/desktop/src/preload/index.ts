@@ -25,7 +25,7 @@ const api = {
     kind: 'backfill' | 'incremental' | 'ids',
     opts: { months?: number; ids?: string; saveHtml?: boolean; refresh?: boolean }
   ) => ipcRenderer.invoke('run:crawl', kind, opts),
-  syncFavorites: (opts: { dryRun?: boolean; limit?: number; batch?: number }) =>
+  syncFavorites: (opts: { dryRun?: boolean; viaApi?: boolean; prune?: boolean; maxPages?: number }) =>
     ipcRenderer.invoke('run:sync-favorites', opts),
   graphBuild: () => ipcRenderer.invoke('run:graph-build'),
   lintVault: () => ipcRenderer.invoke('run:lint-vault'),

@@ -14,7 +14,10 @@ export interface GraphNode {
   posted_at: string | null;
 }
 
-export type EdgeKind = "domain" | "tag" | "related" | "favorited" | "similarity";
+// favorited is intentionally NOT an edge kind: n favorited nodes as a clique
+// would produce n*(n-1)/2 edges (1.2M+ at n=1592). It lives on nodes instead;
+// the viewer colors and filters by it.
+export type EdgeKind = "domain" | "tag" | "related" | "similarity";
 
 export interface GraphEdge {
   src: number;
@@ -59,7 +62,9 @@ function pairKey(a: number, b: number): string {
 export async function buildGraph(): Promise<Graph> {
   const nodes: GraphNode[] = [];
   const titleGrams = new Map<number, Set<string>>();
+  const relatedLinks: Array<[number, number]> = [];
 
+  // single vault pass: nodes, title n-grams, and related wikilinks together
   for await (const tf of iterTopicFiles()) {
     const parsed = TopicFrontmatter.safeParse(coerceDates(tf.data));
     if (!parsed.success) continue;
@@ -74,6 +79,9 @@ export async function buildGraph(): Promise<Graph> {
       posted_at: fm.posted_at,
     });
     titleGrams.set(fm.id, ngrams(fm.title, SIM_NGRAM_SIZE));
+    for (const link of fm.related) {
+      for (const dst of extractWikilinkIds(link)) relatedLinks.push([fm.id, dst]);
+    }
   }
   nodes.sort((a, b) => b.id - a.id);
 
@@ -131,19 +139,8 @@ export async function buildGraph(): Promise<Graph> {
     }
   }
 
-  // related (wikilinks) edges
-  for await (const tf of iterTopicFiles()) {
-    const related = Array.isArray(tf.data.related) ? (tf.data.related as unknown[]) : [];
-    const linkedIds = related
-      .filter((v): v is string => typeof v === "string")
-      .flatMap(extractWikilinkIds);
-    for (const dst of linkedIds) addEdge(tf.id, dst, "related", 2);
-  }
-
-  // favorited is a NODE attribute, not an edge clique — n favorited nodes
-  // would otherwise produce n*(n-1)/2 edges (1.2M+ at n=1592), bloating the
-  // graph and drowning every other signal. The viewer highlights favorited
-  // nodes by color and offers a favorited-only filter instead.
+  // related (wikilinks) edges — collected during the node pass above
+  for (const [src, dst] of relatedLinks) addEdge(src, dst, "related", 2);
 
   // similarity (title 3-gram jaccard). Bucket by shared trigrams to avoid full N^2.
   const buckets = new Map<string, number[]>();

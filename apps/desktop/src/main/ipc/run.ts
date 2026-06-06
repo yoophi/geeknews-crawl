@@ -64,14 +64,18 @@ export function registerRunIpc(): void {
     }
   )
 
-  ipcMain.handle('run:sync-favorites', (e, opts: { dryRun?: boolean; limit?: number; batch?: number }) => {
-    const win = BrowserWindow.fromWebContents(e.sender)
-    const args: string[] = ['sync:favorites']
-    if (opts.dryRun) args.push('--dry-run')
-    if (opts.limit) args.push('--limit', String(opts.limit))
-    if (opts.batch) args.push('--batch', String(opts.batch))
-    return startCli('sync-favorites', args, win)
-  })
+  ipcMain.handle(
+    'run:sync-favorites',
+    (e, opts: { dryRun?: boolean; viaApi?: boolean; prune?: boolean; maxPages?: number }) => {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      const args: string[] = ['sync:favorites']
+      if (opts.dryRun) args.push('--dry-run')
+      if (opts.viaApi) args.push('--via-api')
+      if (opts.prune) args.push('--prune')
+      if (opts.maxPages) args.push('--max-pages', String(opts.maxPages))
+      return startCli('sync-favorites', args, win)
+    }
+  )
 
   ipcMain.handle('run:graph-build', (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)

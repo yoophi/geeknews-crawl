@@ -3,7 +3,8 @@ import cytoscape from 'cytoscape'
 import type { Core, ElementDefinition, EdgeSingular, NodeSingular } from 'cytoscape'
 import { api } from '../lib/api'
 
-type EdgeKind = 'domain' | 'tag' | 'related' | 'favorited' | 'similarity'
+// favorited is a node attribute (color + filter), not an edge kind
+type EdgeKind = 'domain' | 'tag' | 'related' | 'similarity'
 
 interface GraphNode {
   id: number
@@ -28,10 +29,9 @@ const EDGE_COLORS: Record<EdgeKind, string> = {
   domain: '#9aa0a6',
   tag: '#7c3aed',
   related: '#0ea5e9',
-  favorited: '#d97706',
   similarity: '#10b981'
 }
-const ALL_KINDS: EdgeKind[] = ['domain', 'tag', 'related', 'favorited', 'similarity']
+const ALL_KINDS: EdgeKind[] = ['domain', 'tag', 'related', 'similarity']
 
 export default function GraphCanvas() {
   const ref = useRef<HTMLDivElement>(null)

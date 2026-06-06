@@ -16,7 +16,8 @@ export default function Tools() {
   const [saveHtml, setSaveHtml] = useState(false)
   const [refresh, setRefresh] = useState(false)
   const [syncDryRun, setSyncDryRun] = useState(true)
-  const [syncLimit, setSyncLimit] = useState<number | ''>('')
+  const [syncViaApi, setSyncViaApi] = useState(false)
+  const [syncPrune, setSyncPrune] = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -61,7 +62,8 @@ export default function Tools() {
   async function startSync() {
     await api.syncFavorites({
       dryRun: syncDryRun,
-      limit: syncLimit ? Number(syncLimit) : undefined
+      viaApi: syncViaApi,
+      prune: syncPrune && syncViaApi
     })
   }
   async function rebuildGraph() {
@@ -159,16 +161,26 @@ export default function Tools() {
                 />{' '}
                 dry-run
               </label>
-            </div>
-            <div className="row">
-              <label>limit</label>
-              <input
-                className="input"
-                type="number"
-                placeholder="전체"
-                value={syncLimit}
-                onChange={(e) => setSyncLimit(e.target.value ? Number(e.target.value) : '')}
-              />
+              <label style={{ display: 'flex', gap: 4, marginLeft: 8 }} title="전체 vault를 viewer API로 대조 (느림, 인증 필요)">
+                <input
+                  type="checkbox"
+                  checked={syncViaApi}
+                  onChange={(e) => setSyncViaApi(e.target.checked)}
+                />{' '}
+                via-api
+              </label>
+              <label
+                style={{ display: 'flex', gap: 4, marginLeft: 8, opacity: syncViaApi ? 1 : 0.4 }}
+                title="제거 동기화 — via-api에서만 안전"
+              >
+                <input
+                  type="checkbox"
+                  checked={syncPrune}
+                  disabled={!syncViaApi}
+                  onChange={(e) => setSyncPrune(e.target.checked)}
+                />{' '}
+                prune
+              </label>
             </div>
             <button className="btn primary" onClick={startSync}>
               실행
